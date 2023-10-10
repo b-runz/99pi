@@ -1,25 +1,67 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from "@azure/functions";
 import axios from "axios";
+import { parseString, Builder } from "xml2js";
 
-export async function ServeMP3FromURL(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
-  try {
-    context.log("Fetching MP3 from URL...");
-
-    // Fetch the MP3 from the specified URL
-    const mp3Url = "https://dts.podtrac.com/redirect.mp3/chrt.fm/track/288D49/stitcher.simplecastaudio.com/3bb687b0-04af-4257-90f1-39eef4e631b6/episodes/acca70c7-f331-4767-b888-bf22d91b0602/audio/128/default.mp3?aid=rss_feed&awCollectionId=3bb687b0-04af-4257-90f1-39eef4e631b6&awEpisodeId=acca70c7-f331-4767-b888-bf22d91b0602&feed=BqbsxVfO";
-    const response = await axios.get(mp3Url, {
-      responseType: "arraybuffer", // Get the MP3 as an array buffer
+const parseXmlAsync = (xmlData: string): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    parseString(xmlData, (err, result) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(result);
+      }
     });
+  });
+};
 
-    context.log("MP3 fetched successfully.");
+export async function Get99RSSFeed(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+  try {
+    const rssUrl = "https://feeds.simplecast.com/BqbsxVfO";
 
-    // Set the HTTP response with the MP3 data and correct content type
+    context.log("Fetching RSS podcast feed from:", rssUrl);
+
+    // Fetch the RSS feed
+    const response = await axios.get(rssUrl);
+
+    if (response.status !== 200) {
+      throw new Error("Failed to fetch RSS feed.");
+    }
+
+    context.log("RSS podcast feed fetched successfully.");
+
+    // Parse the XML response
+    const xmlData = response.data;
+    const result = await parseXmlAsync(xmlData);
+
+    // Replace the URL within the enclosure tag with a URL-encoded version
+    if (result.rss && result.rss.channel) {
+      result.rss.channel.title = "99pi"
+      if (result.rss.channel[0].item) {
+        const items = result.rss.channel[0].item;
+        for (const item of items) {
+          if (item.enclosure && item.enclosure[0].$.url) {
+            const originalUrl = item.enclosure[0].$.url;
+            const encodedUrl =
+              "https://jolly-water-052fedd03.3.azurestaticapps.net/api/UrlProxy?url=" +
+              encodeURIComponent(originalUrl);
+            item.enclosure[0].$.url = encodedUrl;
+          }
+        }
+      }
+    }
+
+    // Build the modified XML data
+    const builder = new Builder();
+    const modifiedXml = builder.buildObject(result);
+
     return {
-      body: response.data,
+      body: modifiedXml,
       headers: {
-        "Content-Type": "audio/mpeg", // Specify the correct content type for MP3
+        "Content-Type": "application/xml",
       },
     };
+
+
   } catch (error) {
     return {
       status: 500,
@@ -28,8 +70,8 @@ export async function ServeMP3FromURL(request: HttpRequest, context: InvocationC
   }
 };
 
-app.http("ServeMP3FromURL", {
+app.http("Get99RSSFeed", {
   methods: ["GET"],
   authLevel: "anonymous",
-  handler: ServeMP3FromURL,
+  handler: Get99RSSFeed,
 });
