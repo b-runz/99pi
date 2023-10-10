@@ -35,7 +35,7 @@ export async function Get99RSSFeed(request: HttpRequest, context: InvocationCont
 
     // Replace the URL within the enclosure tag with a URL-encoded version
     if (result.rss && result.rss.channel) {
-      result.rss.channel.title = "99pi"
+      result.rss.channel[0].title = "99pi"
       if (result.rss.channel[0].item) {
         const items = result.rss.channel[0].item;
         for (const item of items) {
