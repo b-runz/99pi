@@ -14,7 +14,7 @@ const parseXmlAsync = (xmlData: string): Promise<any> => {
   });
 };
 
-export async function Get99RSSFeedV2(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+export async function GetRlabRSSFeed(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   try {
     const rssUrl = "https://feeds.feedburner.com/radiolab";
 
@@ -70,8 +70,8 @@ export async function Get99RSSFeedV2(request: HttpRequest, context: InvocationCo
   }
 };
 
-app.http("Get99RSSFeedV2", {
+app.http("GetRlabRSSFeed", {
   methods: ["GET"],
   authLevel: "anonymous",
-  handler: Get99RSSFeedV2,
+  handler: GetRlabRSSFeed,
 });
